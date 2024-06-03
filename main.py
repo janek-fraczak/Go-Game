@@ -5,7 +5,7 @@ class GoGame:
     def __init__(self, size=9):
         self.ko = None
         self.size = size
-        self.board = [['.' for _ in range(size)] for _ in range(size)]
+        self.board = {i:{j:"." for j in range(self.size)} for i in range(self.size)}
         self.current_player = 'B'
         self.points = {"B": 0, "W": 0}
         self.pas = 0
@@ -14,8 +14,9 @@ class GoGame:
         self.current_player = "W" if self.current_player == "B" else "B"
 
     def print_board(self) -> None:
-        for row in self.board:
-            print("".join(row))
+        print(" :", " ".join(str(i) for i in range(self.size)))
+        for k, v in self.board.items():
+            print(chr(ord("A") + k)+":", " ".join(v.values()))
         print(self.points, self.ko)
         print()
 
@@ -23,33 +24,40 @@ class GoGame:
         return 0<=x<self.size and 0<=y<self.size
 
     def place_stone(self, x, y) -> bool:
-        if not self.is_on_board(x,y) or self.board[x][y] != "." or self.ko == (x,y):
+        if not self.is_on_board(x,y) or self.board[x][y] != ".":
             return False
         opponent = "W" if self.current_player == "B" else "B"
-        self.ko = None
         self.board[x][y] = self.current_player
         if not self.has_liberty(x, y):
             for (nx, ny) in self.get_neighbors(x, y):
                 if self.board[nx][ny] == opponent and not self.has_liberty(nx,ny):
+                    self.remove_captured_stones(x, y)
                     self.change_player()
                     return True
             self.board[x][y] = "."
             return False
-        self.remove_captured_stones(x,y)
+        if not self.remove_captured_stones(x,y):
+            return False
         self.change_player()
         return True
 
-    def remove_captured_stones(self, x, y) -> None:
+    def remove_captured_stones(self, x, y) -> int:
         res = 0
         opponent = "W" if self.current_player == "B" else "B"
         for nx, ny in self.get_neighbors(x, y):
-            if self.board[nx][ny]==opponent:
-                if not self.has_liberty(nx, ny):
-                    res += self.capture_group(nx, ny)
-                    last = (nx,ny)
+            if self.board[nx][ny]==opponent and not self.has_liberty(nx, ny):
+                res += self.capture_group(nx, ny)
+                last = (nx,ny)
         self.points[self.current_player] += res
         if res == 1:
+            if self.ko == (x,y):
+                self.board[x][y] = "."
+                self.board[last[0]][last[1]] = opponent
+                return False
             self.ko = last
+        else:
+            self.ko = None
+        return True
 
     def has_liberty(self, x, y) -> bool:
         visited = set()
